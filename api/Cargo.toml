@@ -1,0 +1,21 @@
+[package]
+name = "poem"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+poem = { features = ["redis-session"] }
+tokio = { version = "1.12.0", features = ["rt-multi-thread", "macros"] }
+tracing = "0.1"
+tracing-subscriber = "0.2.24"
+redis = { version = "0.21.2", features = ["aio", "tokio-comp", "connection-manager"] }
+serde = { version = "1.0.130", features = ["derive"] }
+diesel = { version = "1.4.4", features = ["postgres", "r2d2", "chrono"] }
+chrono = { version = "0.4", features = ["serde"] }
+dotenv = { version = "0.15.0" }
+reqwest = { version = "0.11", features = ["blocking"] }
+argon2 = "0.3"
+serde_json = "1.0"
+feed-rs = "1.0"
