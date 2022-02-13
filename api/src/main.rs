@@ -11,8 +11,9 @@ use poem::{
     session::{CookieConfig, RedisStorage, ServerSession, Session},
     EndpointExt, Route, Server,
 };
-use redis::{aio::ConnectionManager, Client};
+use redis::{aio::ConnectionManager, Client as Redis};
 use tracing::info;
+use std::process;
 
 mod crypto;
 mod models;
@@ -39,7 +40,11 @@ async fn main() -> Result<(), std::io::Error> {
     tracing_subscriber::fmt::init();
 
     // Open connection to redis.
-    let client = Client::open("redis://127.0.0.1/").unwrap();
+    let client = Redis::open("redis://127.0.0.1/").unwrap();
+    let redis_conn = ConnectionManager::new(client).await.unwrap_or_else(|err| {
+        println!("There was a problem connecting to Redis: {}", err);
+        process::exit(1)
+    });
 
     // Initialize postgres connection pool.
     let pool = pool::init_pool();
@@ -53,12 +58,12 @@ async fn main() -> Result<(), std::io::Error> {
         .with(AddData::new(pool))
         .with(ServerSession::new(
             CookieConfig::default().secure(false),
-            RedisStorage::new(ConnectionManager::new(client).await.unwrap()),
+            RedisStorage::new(redis_conn),
         ));
 
     // Go!
     info!("Booting up...");
-    Server::new(TcpListener::bind("127.0.0.1:8888"))
+    Server::new(TcpListener::bind("0.0.0.0:8888"))
         .run(app)
         .await
 }
