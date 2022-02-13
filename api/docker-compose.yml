@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+
+  db:
+    image: postgres:14.2-bullseye
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: marble
+      POSTGRES_DB: hippo
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  cache:
+    image: redis:6.2-bullseye
+    restart: always
+    ports:
+      - 6379:6379
