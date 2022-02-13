@@ -1,5 +1,5 @@
 use super::schema::{feeds, posts, users};
-use chrono::Utc::now;
+use chrono::Utc;
 use diesel::{Insertable, Queryable};
 use feed_rs::model;
 use serde::{Deserialize, Serialize};
@@ -52,7 +52,7 @@ impl TryFrom<model::Feed> for NewFeed {
                 title: f.title.map(|x| x.content),
                 changed_at: f.updated.map(|x| x.naive_utc()),
                 description: f.description.map(|x| x.content),
-                fetched_at: Some(now().naive_utc()),
+                fetched_at: Some(Utc::now().naive_utc()),
             }),
             None => Err("No URL"),
         }

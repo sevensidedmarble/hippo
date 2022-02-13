@@ -3,7 +3,6 @@ use crate::pool;
 use crate::schema::feeds;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use diesel::*;
 use feed_rs::model;
 use feed_rs::parser;
 use poem::{
