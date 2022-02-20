@@ -1,3 +1,7 @@
+joinable!(user_feeds -> users (user_id));
+joinable!(user_feeds -> feeds (feed_id));
+joinable!(posts -> feeds (feed_id));
+
 table! {
     feeds (id) {
         id -> Int4,
