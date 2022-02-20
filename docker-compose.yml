@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    ports:
+      - '8888:8888'
+    volumes:
+      - ./api:/usr/src/app
+    depends_on:
+      - db
+      - cache
+    environment:
+      DATABASE_URL: postgres://marble@db:5432/hippo
+      REDIS_URL: redis://cache/
+    command: bash -c "diesel setup && cargo watch -x run"
+
+  frontend:
+    build:
+      context: ./
+      dockerfile: Dockerfile.dev
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./:/app
+    depends_on:
+      - api
+    environment:
+      DEV_SERVER_HOST: 0.0.0.0
+
+  db:
+    image: postgres:14.2-bullseye
+    ports:
+      - 5444:5432
+    environment:
+      POSTGRES_USER: marble
+      POSTGRES_DB: hippo
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  cache:
+    image: redis:6.2-bullseye

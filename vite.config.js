@@ -1,10 +1,17 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [svelte()],
-  server: {
-    port: 4500
-  }
-})
+export default ({ mode }) => {
+  process.env = { ...process.env, ...loadEnv(mode, process.cwd(), '') }
+
+  const host = process.env.DEV_SERVER_HOST
+  const port = process.env.DEV_SERVER_PORT
+
+  return defineConfig({
+    plugins: [svelte()],
+    server: {
+      host,
+      port
+    }
+  })
+}

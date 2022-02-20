@@ -21,6 +21,10 @@ mod pool;
 mod routes;
 mod schema;
 
+fn redis_url() -> String {
+    std::env::var("REDIS_URL").expect("REDIS_URL must be set")
+}
+
 #[handler]
 async fn count(session: &Session) -> String {
     let count = session.get::<i32>("count").unwrap_or(0) + 1;
@@ -40,7 +44,7 @@ async fn main() -> Result<(), std::io::Error> {
     tracing_subscriber::fmt::init();
 
     // Open connection to redis.
-    let client = Redis::open("redis://127.0.0.1/").unwrap();
+    let client = Redis::open(redis_url()).unwrap();
     let redis_conn = ConnectionManager::new(client).await.unwrap_or_else(|err| {
         println!("There was a problem connecting to Redis: {}", err);
         process::exit(1)
