@@ -1,6 +1,6 @@
 use crate::models::*;
 use crate::pool;
-use crate::schema::feeds;
+use crate::schema::{feeds, users, user_feeds, posts};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use feed_rs::model;
@@ -18,8 +18,56 @@ fn bad_request() -> Error {
     Error::from_status(StatusCode::BAD_REQUEST)
 }
 
+fn get_user_from_user_id(user_id: Path<String>, conn: &diesel::PgConnection) -> Result<User> {
+    let id = user_id.parse::<i32>().map_err(|_e| bad_request())?;
+
+    users::table.find(id).first::<User>(conn).map_err(|_e| bad_request())
+}
+
+// TODO: loop through all the feeds for a user and fetch them
 // pub async fn refresh_feeds() {}
-// pub async fn list_feeds() {}
+
+#[handler]
+pub async fn list_feeds(
+    user_id: Path<String>,
+    pool: Data<&pool::Pool>,
+) -> Result<Json<serde_json::Value>> {
+    let conn = pool.get().map_err(|_e| bad_request())?;
+
+    let user = get_user_from_user_id(user_id, &conn)?;
+
+    let feeds: Vec<Feed> = UserFeed::belonging_to(&user)
+            .inner_join(feeds::table)
+            .select(feeds::all_columns)
+            .load::<Feed>(&conn)
+            .map_err(|_e| bad_request())?;
+
+    Ok(Json(json!({ "feeds": feeds })))
+}
+
+#[handler]
+pub async fn list_posts(
+    user_id: Path<String>,
+    pool: Data<&pool::Pool>,
+) -> Result<Json<serde_json::Value>> {
+    let conn = pool.get().map_err(|_e| bad_request())?;
+
+    let id = user_id.parse::<i32>().map_err(|_e| bad_request())?;
+
+    let posts: Vec<Post> = users::table.inner_join(
+            user_feeds::table.inner_join(
+                feeds::table.inner_join(
+                    posts::table
+                )
+            )
+        )
+        .filter(users::id.eq(id))
+        .select(posts::all_columns)
+        .load(&conn)
+        .map_err(|_e| bad_request())?;
+
+    Ok(Json(json!({ "posts": posts })))
+}
 
 #[derive(Debug, Deserialize)]
 struct CreateFeed {
@@ -34,6 +82,8 @@ pub async fn create_feed(
 ) -> Result<Json<serde_json::Value>> {
     let conn = pool.get().map_err(|_e| bad_request())?;
 
+    let user = get_user_from_user_id(user_id, &conn)?;
+
     let text = reqwest::get(body.uri)
         .await
         .map_err(|_e| bad_request())?
@@ -46,50 +96,38 @@ pub async fn create_feed(
     // Convert to our feed type
     let our_feed: NewFeed = NewFeed::try_from(feed.clone()).map_err(|_e| bad_request())?;
 
-    match our_feed.insert_into(feeds::table).execute(&conn) {
-        Ok(rows) => println!("inserted {:?} rows", rows),
-        Err(_) => println!("something went wrong"),
+    let inserted_feed = our_feed.insert_into(feeds::table)
+            .get_result::<Feed>(&conn)
+            .map_err(|_e| bad_request())?;
+
+    let new_user_feed: UserFeed = UserFeed {
+        user_id: user.id,
+        feed_id: inserted_feed.id
     };
 
-    // insert_into(users::table)
-    //     .values(our_feed)
-    //     .execute(&conn)
-    //     .map_err(|_e| bad_request())?;
+    // Insert the join-table record.
+    new_user_feed.insert_into(user_feeds::table)
+        .execute(&conn)
+        .map_err(|_e| bad_request())?;
 
     // Convert the entry from the feed_rs library into our own type.
-    let entries: Vec<_> = feed
+    let new_posts: Vec<NewPost> = feed
         .entries
         .iter()
         .cloned()
-        .map(|x| Entry::from(x))
+        .map(|x| NewPost::try_from(x))
+        .flatten()
         .collect();
 
-    Ok(Json(json!(Entries { entries })))
+    // TODO: Do this with a map?
+    let mut posts: Vec<Post> = vec![];
+    for p in new_posts {
+        let post = p.insert_into(posts::table).get_result::<Post>(&conn).unwrap();
+        posts.push(post);
+    }
+
+    Ok(Json(json!(Posts { posts })))
 }
-
-// #[derive(Debug, Deserialize, Serialize)]
-// struct Feed {
-//     url: String,
-//     title: Option<String>,
-//     changed_at: Option<DateTime<Utc>>,
-//     description: Option<String>,
-// }
-
-// impl TryFrom<model::Feed> for Feed {
-//     type Error = &'static str;
-
-//     fn try_from(f: model::Feed) -> Result<Self, Self::Error> {
-//         match f.links.first().map(|x| x.href.clone()) {
-//             Some(url) => Ok(Self {
-//                 url,
-//                 title: f.title.map(|x| x.content),
-//                 changed_at: f.updated,
-//                 description: f.description.map(|x| x.content),
-//             }),
-//             None => Err("No URL"),
-//         }
-//     }
-// }
 
 // TODO: Use this. Figure out how to best store. Doesn't feel like it should have its own table.
 #[derive(Debug, Deserialize, Serialize)]
@@ -134,6 +172,6 @@ impl From<model::Entry> for Entry {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Entries {
-    entries: Vec<Entry>,
+struct Posts {
+    posts: Vec<Post>,
 }

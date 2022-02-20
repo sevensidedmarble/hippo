@@ -1,10 +1,11 @@
-use super::schema::{feeds, posts, users};
+use super::schema::{feeds, posts, users, user_feeds};
 use chrono::Utc;
-use diesel::{Insertable, Queryable};
+use diesel::{Associations, Identifiable, Insertable, Queryable};
 use feed_rs::model;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Clone, Queryable)]
+
+#[derive(Identifiable, Associations, Deserialize, Serialize, Debug, Clone, Queryable)]
 pub struct User {
     pub id: i32,
     pub email: String,
@@ -20,7 +21,7 @@ pub struct NewUser {
     pub password_hash: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Queryable)]
+#[derive(Identifiable, Associations, Deserialize, Serialize, Debug, Clone, Queryable)]
 pub struct Feed {
     pub id: i32,
     pub url: String,
@@ -30,6 +31,14 @@ pub struct Feed {
     pub fetched_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
+}
+
+#[derive(Identifiable, Deserialize, Insertable, Serialize, Associations, Debug, Clone, Queryable)]
+#[primary_key(user_id, feed_id)]
+#[belongs_to(User, Feed)]
+pub struct UserFeed {
+    pub user_id: i32,
+    pub feed_id: i32
 }
 
 #[derive(Debug, Clone, Insertable, Deserialize, Serialize)]
@@ -59,10 +68,11 @@ impl TryFrom<model::Feed> for NewFeed {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Queryable)]
+#[derive(Insertable, Associations, Deserialize, Serialize, Debug, Clone, Queryable)]
+#[belongs_to(Feed)]
 pub struct Post {
     pub id: i32,
-    pub feed_id: i32,
+    pub feed_id: Option<i32>,
     pub url: String,
     pub title: Option<String>,
     pub summary: Option<String>,
@@ -74,12 +84,32 @@ pub struct Post {
 #[derive(Debug, Clone, Insertable)]
 #[table_name = "posts"]
 pub struct NewPost {
-    pub feed_id: i32,
+    pub feed_id: Option<i32>,
     pub url: String,
+    pub title: Option<String>,
+    pub summary: Option<String>,
+    pub published_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Queryable)]
-pub struct UserFeed {
-    pub user_id: i32,
-    pub feed_id: i32,
+impl NewPost {
+    fn set_feed_id(&mut self, feed_id: Option<i32>) {
+        self.feed_id = feed_id;
+    }
+}
+
+impl TryFrom<model::Entry> for NewPost {
+    type Error = &'static str;
+
+    fn try_from(e: model::Entry) -> Result<Self, Self::Error> {
+        match e.links.first().map(|x| x.href.clone()) {
+            Some(url) => Ok(Self {
+                feed_id: None,
+                url,
+                title: e.title.map(|x| x.content),
+                published_at: e.published.map(|x| x.naive_utc()),
+                summary: e.summary.map(|x| x.content),
+            }),
+            None => Err("No URL"),
+        }
+    }
 }
