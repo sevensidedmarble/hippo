@@ -70,7 +70,7 @@ pub async fn list_posts(
 }
 
 #[derive(Debug, Deserialize)]
-struct CreateFeed {
+pub struct CreateFeed {
     uri: String,
 }
 

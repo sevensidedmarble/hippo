@@ -14,7 +14,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 #[derive(Deserialize)]
-struct AuthParams {
+pub struct AuthParams {
     email: String,
     password: String,
 }
