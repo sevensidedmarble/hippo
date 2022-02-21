@@ -1,4 +1,6 @@
-use crate::models::*;
+use crate::models::feed::*;
+use crate::models::user::User;
+use crate::models::post::*;
 use crate::pool;
 use crate::schema::{feeds, users, user_feeds, posts};
 use chrono::{DateTime, Utc};

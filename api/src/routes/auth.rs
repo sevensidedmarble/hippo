@@ -1,5 +1,5 @@
 use crate::crypto::{hash_password, verify_password};
-use crate::models::*;
+use crate::models::user::*;
 use crate::pool;
 use crate::schema::users;
 use diesel::prelude::*;
