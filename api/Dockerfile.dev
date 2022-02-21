@@ -1,15 +1,33 @@
-FROM rustlang/rust:nightly
+FROM rustlang/rust:nightly as base
 
-RUN cargo install diesel_cli --no-default-features --features postgres
+WORKDIR /app
 
-RUN cargo install cargo-watch
+# Install tools used in running the app in dev mode:
+# * cargo-chef builds all dependencies separate from the app so they can be layer cached.
+# * diesel_cli does stuff?
+# * cargo-watch allows us to rebuild on change.
+# * tini is a tiny init. Using it helps start and stop faster.
+RUN cargo install cargo-chef --version 0.1.33 && \
+    cargo install diesel_cli --no-default-features --features postgres && \
+    cargo install cargo-watch && \
+    rm -rf "$CARGO_HOME"/registry/ && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends tini && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /usr/src/app
+# In this layer, create a "recipe", a list of all our dependencies.
+FROM base as planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+from base as runtime
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
+COPY . .
+RUN cargo build --bin hippo
 
 EXPOSE 8888
-
 VOLUME ["/usr/local/cargo"]
 
-# ENTRYPOINT ["./entrypoint.sh"]
-
-CMD ["diesel", "setup", "&&", "cargo", "watch", "-x", "run"]
+ENTRYPOINT ["tini", "--"]
+CMD ["cargo", "watch", "-x", "run"]

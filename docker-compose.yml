@@ -8,7 +8,7 @@ services:
     ports:
       - '8888:8888'
     volumes:
-      - ./api:/usr/src/app
+      - ./api:/app
     depends_on:
       - db
       - cache
