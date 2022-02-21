@@ -11,4 +11,5 @@ COPY . .
 
 EXPOSE 8080
 
+ENV PATH "$PATH:/app/node_modules/.bin"
 CMD ["npm", "run", "dev"]
