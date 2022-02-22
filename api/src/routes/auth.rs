@@ -9,9 +9,18 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json},
+    session::Session,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use chrono::{Duration, Utc};
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserSession {
+    pub sub: String,
+    pub exp: chrono::DateTime<chrono::Utc>,
+}
 
 #[derive(Deserialize)]
 pub struct AuthParams {
@@ -48,6 +57,7 @@ pub async fn register(
 #[handler]
 pub async fn login(
     Json(params): Json<AuthParams>,
+    session: &Session,
     pool: Data<&pool::Pool>,
 ) -> Result<Json<serde_json::Value>> {
     let email = params.email.to_string();
@@ -65,13 +75,25 @@ pub async fn login(
     match result {
         Ok(User {
             password_hash,
-            email,
             ..
         }) => {
             let logged_in =
                 verify_password(&params.password.as_bytes(), &password_hash.to_string());
+
             println!("logged_in is {:?}", logged_in);
-            Ok(Json(json!({ "email": email })))
+
+            if logged_in {
+                let token = UserSession {
+                    sub: email,
+                    exp: Utc::now() + Duration::days(1),
+                };
+                
+                session.set("session", token);
+
+                Ok(Json(json!({ "status": "ok" })))
+            } else {
+                Ok(Json(json!({ "status": "auth failed" })))
+            }
         }
         Err(_) => Err(Error::from_status(StatusCode::BAD_REQUEST)),
     }

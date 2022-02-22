@@ -17,6 +17,7 @@ use std::process;
 
 mod crypto;
 mod models;
+mod middleware;
 mod pool;
 mod routes;
 mod schema;
@@ -57,8 +58,10 @@ async fn main() -> Result<(), std::io::Error> {
     let app = Route::new()
         .at("/auth/login", post(routes::auth::login))
         .at("/auth/register", post(routes::auth::register))
-        .at("/users/:user_id/feeds", post(routes::feeds::create_feed))
+        .at("/users/:user_id/feeds", post(routes::feeds::create_feed).get(routes::feeds::list_feeds).around(middleware::auth::auth_middleware))
+        .at("/users/:user_id/posts", get(routes::feeds::list_posts).around(middleware::auth::auth_middleware))
         .at("/", get(count))
+        .at("/:user_id", get(count).around(middleware::auth::auth_middleware))
         .with(AddData::new(pool))
         .with(ServerSession::new(
             CookieConfig::default().secure(false),

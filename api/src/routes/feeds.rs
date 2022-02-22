@@ -20,25 +20,17 @@ fn bad_request() -> Error {
     Error::from_status(StatusCode::BAD_REQUEST)
 }
 
-fn get_user_from_user_id(user_id: Path<String>, conn: &diesel::PgConnection) -> Result<User> {
-    let id = user_id.parse::<i32>().map_err(|_e| bad_request())?;
-
-    users::table.find(id).first::<User>(conn).map_err(|_e| bad_request())
-}
-
 // TODO: loop through all the feeds for a user and fetch them
 // pub async fn refresh_feeds() {}
 
 #[handler]
 pub async fn list_feeds(
-    user_id: Path<String>,
+    Data(user): Data<&User>,
     pool: Data<&pool::Pool>,
 ) -> Result<Json<serde_json::Value>> {
     let conn = pool.get().map_err(|_e| bad_request())?;
 
-    let user = get_user_from_user_id(user_id, &conn)?;
-
-    let feeds: Vec<Feed> = UserFeed::belonging_to(&user)
+    let feeds: Vec<Feed> = UserFeed::belonging_to(user)
             .inner_join(feeds::table)
             .select(feeds::all_columns)
             .load::<Feed>(&conn)
@@ -78,13 +70,11 @@ pub struct CreateFeed {
 
 #[handler]
 pub async fn create_feed(
-    user_id: Path<String>,
+    Data(user): Data<&User>,
     Json(body): Json<CreateFeed>,
     pool: Data<&pool::Pool>,
 ) -> Result<Json<serde_json::Value>> {
     let conn = pool.get().map_err(|_e| bad_request())?;
-
-    let user = get_user_from_user_id(user_id, &conn)?;
 
     let text = reqwest::get(body.uri)
         .await
