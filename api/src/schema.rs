@@ -5,7 +5,8 @@ joinable!(posts -> feeds (feed_id));
 table! {
     feeds (id) {
         id -> Int4,
-        url -> Text,
+        rss_url -> Text,
+        url -> Nullable<Text>,
         title -> Nullable<Text>,
         description -> Nullable<Text>,
         changed_at -> Nullable<Timestamp>,

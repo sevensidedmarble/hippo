@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Identifiable, Associations, Deserialize, Serialize, Debug, Clone, Queryable)]
 pub struct Feed {
     pub id: i32,
-    pub url: String,
+    pub rss_url: String,
+    pub url: Option<String>,
     pub title: Option<String>,
     pub description: Option<String>,
     pub changed_at: Option<chrono::NaiveDateTime>, // When the feed says it was last changed
@@ -30,11 +31,18 @@ pub struct UserFeed {
 #[derive(Debug, Clone, Insertable, Deserialize, Serialize)]
 #[table_name = "feeds"]
 pub struct NewFeed {
-    pub url: String,
+    pub rss_url: Option<String>,
+    pub url: Option<String>,
     pub title: Option<String>,
     pub description: Option<String>,
     pub changed_at: Option<chrono::NaiveDateTime>,
     pub fetched_at: Option<chrono::NaiveDateTime>,
+}
+
+impl NewFeed {
+    pub fn rss_url(&mut self, rss_url: Option<String>) {
+        self.rss_url = rss_url;
+    }
 }
 
 impl TryFrom<model::Feed> for NewFeed {
@@ -43,7 +51,8 @@ impl TryFrom<model::Feed> for NewFeed {
     fn try_from(f: model::Feed) -> Result<Self, Self::Error> {
         match f.links.first().map(|x| x.href.clone()) {
             Some(url) => Ok(Self {
-                url,
+                rss_url: None,
+                url: Some(url),
                 title: f.title.map(|x| x.content),
                 changed_at: f.updated.map(|x| x.naive_utc()),
                 description: f.description.map(|x| x.content),

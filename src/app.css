@@ -1,4 +1,54 @@
-/* Write your global styles here, in PostCSS syntax */
+@import url('https://fonts.googleapis.com/css2?family=Nunito&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+* {
+  box-sizing: border-box !important;
+}
+
+div {
+  font-family: 'Nunito', sans-serif;
+}
+
+button {
+  animation: button-pop 0.25s ease-out;
+}
+
+/* button:active:hover, */
+/* button:active:focus { */
+/*   animation: none; */
+/* } */
+
+/* button:active:hover, */
+/* button:active:focus { */
+/*   transform: scale(0.95); */
+/* } */
+
+/* } */
+
+button:active {
+  animation: none;
+  transform: scale(0.95);
+}
+
+@keyframes button-pop {
+  0% {
+    transform: scale(0.95);
+  }
+  40% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* button { */
+/*   transition: transform; */
+/* } */
+
+/* button:active { */
+/*   transform: scale(0.95); */
+/* } */

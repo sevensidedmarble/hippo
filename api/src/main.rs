@@ -6,7 +6,7 @@ use dotenv::dotenv;
 use poem::{
     get, handler,
     listener::TcpListener,
-    middleware::AddData,
+    middleware::{AddData, Cors},
     post,
     session::{CookieConfig, RedisStorage, ServerSession, Session},
     EndpointExt, Route, Server,
@@ -54,14 +54,18 @@ async fn main() -> Result<(), std::io::Error> {
     // Initialize postgres connection pool.
     let pool = pool::init_pool();
 
+    let cors_middleware = Cors::new().allow_origins_fn(|_| true).allow_credentials(true);
+
     // Setup the endpoint handlers.
     let app = Route::new()
         .at("/auth/login", post(routes::auth::login))
         .at("/auth/register", post(routes::auth::register))
         .at("/users/:user_id/feeds", post(routes::feeds::create_feed).get(routes::feeds::list_feeds).around(middleware::auth::auth_middleware))
         .at("/users/:user_id/posts", get(routes::feeds::list_posts).around(middleware::auth::auth_middleware))
+        .at("/users/:user_id/refresh_feeds", post(routes::feeds::refresh_feeds).around(middleware::auth::auth_middleware))
         .at("/", get(count))
         .at("/:user_id", get(count).around(middleware::auth::auth_middleware))
+        .with(cors_middleware)
         .with(AddData::new(pool))
         .with(ServerSession::new(
             CookieConfig::default().secure(false),

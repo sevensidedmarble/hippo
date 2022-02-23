@@ -15,13 +15,73 @@ use poem::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use futures::{stream, StreamExt};
+use reqwest::Client;
+
+const CONCURRENT_REQUESTS: usize = 2;
 
 fn bad_request() -> Error {
     Error::from_status(StatusCode::BAD_REQUEST)
 }
 
-// TODO: loop through all the feeds for a user and fetch them
-// pub async fn refresh_feeds() {}
+#[handler]
+pub async fn refresh_feeds(
+    Data(user): Data<&User>,
+    pool: Data<&pool::Pool>,
+) -> Result<Json<serde_json::Value>> {
+    let conn = pool.get().map_err(|_e| bad_request())?;
+
+    let feeds: Vec<Feed> = UserFeed::belonging_to(user)
+        .inner_join(feeds::table)
+        .select(feeds::all_columns)
+        .load::<Feed>(&conn)
+        .map_err(|_e| bad_request())?;
+
+    let client = Client::new();
+
+    let urls: Vec<String> = feeds.iter().map(|x| x.rss_url.clone()).collect::<Vec<String>>();
+
+    let mut bodies = stream::iter(urls)
+        .map(|url| {
+            let client = &client;
+            async move {
+                let resp = reqwest::get(url).await;
+                resp?.text().await
+            }
+        })
+    .buffer_unordered(CONCURRENT_REQUESTS);
+
+    let mut posts: Vec<Post> = vec![];
+    while let Some(item) = bodies.next().await {
+        let text = item.unwrap();
+        println!("text {:?}", text);
+        let feed: model::Feed = match parser::parse(text.as_bytes()) {
+            Ok(f) => f,
+            Err(e) => {
+                println!("Parsing failed 😿 {:?}", e);
+                continue
+            }
+        };
+
+        // Convert the entry from the feed_rs library into our own type.
+        let new_posts: Vec<NewPost> = feed
+            .entries
+            .iter()
+            .cloned()
+            .map(|x| NewPost::try_from(x))
+            .flatten()
+            .collect();
+
+        println!("Got something? {:?}", new_posts);
+
+        for p in new_posts {
+            let post = p.insert_into(posts::table).get_result::<Post>(&conn).unwrap();
+            posts.push(post);
+        }
+    }
+
+    Ok(Json(json!({ "feeds": posts })))
+}
 
 #[handler]
 pub async fn list_feeds(
@@ -76,7 +136,8 @@ pub async fn create_feed(
 ) -> Result<Json<serde_json::Value>> {
     let conn = pool.get().map_err(|_e| bad_request())?;
 
-    let text = reqwest::get(body.uri)
+    let rss_url = body.uri.to_owned();
+    let text = reqwest::get(&rss_url)
         .await
         .map_err(|_e| bad_request())?
         .text()
@@ -86,7 +147,8 @@ pub async fn create_feed(
     let feed: model::Feed = parser::parse(text.as_bytes()).map_err(|_e| bad_request())?;
 
     // Convert to our feed type
-    let our_feed: NewFeed = NewFeed::try_from(feed.clone()).map_err(|_e| bad_request())?;
+    let mut our_feed: NewFeed = NewFeed::try_from(feed.clone()).map_err(|_e| bad_request())?;
+    our_feed.rss_url(Some(rss_url));
 
     let inserted_feed = our_feed.insert_into(feeds::table)
             .get_result::<Feed>(&conn)
@@ -113,7 +175,8 @@ pub async fn create_feed(
 
     // TODO: Do this with a map?
     let mut posts: Vec<Post> = vec![];
-    for p in new_posts {
+    for mut p in new_posts {
+        p.feed_id(Some(inserted_feed.id));
         let post = p.insert_into(posts::table).get_result::<Post>(&conn).unwrap();
         posts.push(post);
     }

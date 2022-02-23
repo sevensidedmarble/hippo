@@ -29,7 +29,8 @@ SELECT diesel_manage_updated_at('users');
 
 CREATE TABLE feeds (
     id SERIAL PRIMARY KEY,
-    url TEXT NOT NULL,
+    rss_url TEXT NOT NULL,
+    url TEXT,
     title TEXT,
     description TEXT,
     changed_at TIMESTAMP,

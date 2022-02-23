@@ -28,7 +28,7 @@ pub struct NewPost {
 }
 
 impl NewPost {
-    fn set_feed_id(&mut self, feed_id: Option<i32>) {
+    pub fn feed_id(&mut self, feed_id: Option<i32>) {
         self.feed_id = feed_id;
     }
 }
