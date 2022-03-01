@@ -1,3 +1,10 @@
+// Capitalize the first letter of a string.
+export function capitalizeFirst (str: string) {
+  if (!str) return
+  return str.match('^[a-z]') ? str.charAt(0).toUpperCase() + str.substring(1) : str
+}
+
+// Time stuff
 const units = [
   ['year', 31536000],
   ['month', 2592000],
@@ -7,6 +14,7 @@ const units = [
   ['second', 1]
 ]
 
+// TODO: Introduce setting to use my or date-fns relative time function.
 const duration = (timeAgoInSeconds: number) => {
   console.log(timeAgoInSeconds)
   for (const [name, seconds] of units) {

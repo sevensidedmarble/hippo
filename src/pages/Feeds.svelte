@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Counter from '../components/Counter.svelte'
   import { timeAgo } from '../utils'
   import { feeds } from '../stores/feeds'
+  import { parseJSON, formatRelative } from 'date-fns'
 
   function getRandomInt(max) {
     return Math.floor(Math.random() * max);
@@ -10,14 +10,17 @@
 
 <section>
   <!-- Page header section -->
-  <div class="flex">
-    <h2 class="flex-grow font-bold text-2xl text-gray-900 py-2 my-2">My Feeds</h2>
-    <button class="flex-shrink-0 text-white bg-indigo-500 border-0 focus:outline-indigo-700 hover:bg-indigo-600 rounded font-bold text-lg m-2 p-3">Add Feed</button>
+  <div class="flex gap-2 my-6 px-4">
+    <h2 class="flex-grow font-bold text-2xl leading-10 text-gray-900">My Feeds</h2>
+    <div>
+      <button class="flex-shrink-0 text-white bg-primary border-0 focus:outline-indigo-700 hover:bg-indigo-600 rounded-xl font-bold p-2 px-4">Add Feed</button>
+    </div>
   </div>
 
   <!-- Feeds list -->
+  <ul>
   {#each $feeds as feed}
-    <li class="flex mt-8 gap-6">
+    <li class="flex mt-12 gap-6 p-4 py-1">
       <!-- Title -->
       <div class="flex flex-col flex-auto">
         <div class="font-bold text-lg">{feed.title}</div>
@@ -31,7 +34,7 @@
               {getRandomInt(5)+1} new posts
             </div>
           </div>
-          <div class="text-gray-600 text-sm">Fetched {timeAgo(new Date(feed.fetched_at + "Z"))}</div>
+          <div class="text-gray-600 text-sm">{formatRelative(parseJSON(feed.fetched_at), new Date())}</div>
         </div>
       </div>
       <!-- Menu -->
@@ -42,4 +45,5 @@
       </div>
     </li>
   {/each}
+  </ul>
 </section>

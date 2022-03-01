@@ -16,18 +16,6 @@ button {
   animation: button-pop 0.25s ease-out;
 }
 
-/* button:active:hover, */
-/* button:active:focus { */
-/*   animation: none; */
-/* } */
-
-/* button:active:hover, */
-/* button:active:focus { */
-/*   transform: scale(0.95); */
-/* } */
-
-/* } */
-
 button:active {
   animation: none;
   transform: scale(0.95);
@@ -44,11 +32,3 @@ button:active {
     transform: scale(1);
   }
 }
-
-/* button { */
-/*   transition: transform; */
-/* } */
-
-/* button:active { */
-/*   transform: scale(0.95); */
-/* } */
